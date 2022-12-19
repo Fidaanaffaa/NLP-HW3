@@ -1,0 +1,2 @@
+log linear model evaluation 
+ NEGATE POLARITY Subset Loss: 0.7028471231460571, NEGATE POLARITY Subset Accuracy: 0.4838709677419355

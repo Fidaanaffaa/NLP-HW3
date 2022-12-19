@@ -4,13 +4,14 @@ import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
 import os
+
+from matplotlib import pyplot as plt
 from torch.utils.data import DataLoader, TensorDataset, Dataset
 import operator
 import data_loader
 import pickle
 import tqdm
 from statistics import mean
-
 
 # ------------------------------------------- Constants ----------------------------------------
 
@@ -304,14 +305,13 @@ class DataManager():
         return self.torch_datasets[TRAIN][0][0].shape
 
 
-
-
 # ------------------------------------ Models ----------------------------------------------------
 
 class LSTM(nn.Module):
     """
     An LSTM for sentiment analysis with architecture as described in the exercise description.
     """
+
     def __init__(self, embedding_dim, hidden_dim, n_layers, dropout):
         super().__init__()
         self.model = nn.LSTM(embedding_dim, hidden_dim, n_layers, batch_first=True, bidirectional=True)
@@ -344,6 +344,7 @@ class LogLinear(nn.Module):
     """
     general class for the log-linear models for sentiment analysis.
     """
+
     def __init__(self, embedding_dim):
         super().__init__()
         self._log_linear_layer = nn.Linear(in_features=embedding_dim, out_features=1)
@@ -422,6 +423,7 @@ def train_epoch(model, data_iterator, optimizer, criterion):
 
     return mle_results, average_accuracy
 
+
 def evaluate(model, data_iterator, criterion):
     """
     evaluate the model performance on the given data
@@ -444,7 +446,6 @@ def evaluate(model, data_iterator, criterion):
         loss_tensor = criterion(y_predict, y_real)
 
         loss_weights_list.append(loss_tensor.item())
-
 
         sigmoied_y_predict = activation_function(y_predict)
 
@@ -494,29 +495,31 @@ def train_model(model, data_manager, n_epochs, lr, weight_decay=0.):
         train_loss_list[i], train_accuracy_list[i] = train_epoch(model, train_data_iterator, solver, nn.BCEWithLogitsLoss())
         val_train_loss_list[i], val_accuracy_list[i] = evaluate(model, val_data_iterator, nn.BCEWithLogitsLoss())
 
-
     return train_loss_list, train_accuracy_list, val_train_loss_list, val_accuracy_list, solver
 
 
 def train_log_linear_with_one_hot():
-    w_decay = 0.001
-    learning_rate, n_epoch, batches_size = 0.01, 20, 64
+    w = 0.001
+    n_epoch = 20
+    batch_size = 64
+    learning_rate = 0.01
 
-    train_data_manger = DataManager(data_type=ONEHOT_AVERAGE, batch_size=batches_size)
-    test_set = train_data_manger.get_torch_iterator(data_subset=TEST)
-    embedding_dim = train_data_manger.get_input_shape()[0]  # need to unpack it cuz its a tuple
-    log_linear_model = LogLinear(embedding_dim=embedding_dim)
+    data_manager = DataManager(data_type=ONEHOT_AVERAGE, batch_size=batch_size)
+    dim = data_manager.get_input_shape()[0]  # need to unpack it cuz its a tuple
+    log_linear_model = LogLinear(embedding_dim=dim)
 
     # training phase
-    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver = train_model(log_linear_model,
-                                                                                                       train_data_manger,
-                                                                                                       n_epoch,
-                                                                                                       learning_rate,
-                                                                                                       w_decay)
+    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver =\
+        train_model(log_linear_model, data_manager, n_epoch, learning_rate, w)
 
-    print(f'train loss list is = {train_loss} \n train accuracy list is = { train_accuracy}')
-    print(f'validation loss list is = {train_validation_loss} \n validation accuracy list is = { train_validation_accuracy}')
+    save_model(log_linear_model, os.getcwd() + "/log_linear_result.pkl", n_epoch, trained_solver)
 
+    plot_model_results('log_linear_model_loss', train_loss, train_validation_loss, n_epoch, w, "w2v LogLinear Loss", "Train Loss", "Validation Loss")
+    plot_model_results('log_linear_model_accuracy', train_accuracy, train_validation_accuracy, n_epoch, w, "w2v LogLinear Accuracy", "Train Accuracy", "Validation Accuracy")
+    model_info = f'Train Loss: {train_loss} \n Train Accuracy: {train_accuracy} \n Validation Loss: {train_validation_loss} \n Validation Accuracy: {train_validation_accuracy}'
+    print(model_info)
+    with open("log_linear_model_info.txt", "w") as text_file:
+        text_file.write(model_info)
     return
 
 
@@ -525,23 +528,25 @@ def train_log_linear_with_w2v():
     Here comes your code for training and evaluation of the log linear model with word embeddings
     representation.
     """
-    w_decay = 0.001
-    learning_rate, n_epoch, batches_size = 0.01, 20, 64
+    w = 0.001
+    n_epoch = 20
+    batch_size = 64
+    learning_rate = 0.01
 
-    data_manager = DataManager(data_type=ONEHOT_AVERAGE, batch_size=batches_size)
-    test_set = data_manager.get_torch_iterator(data_subset=TEST)
-    embedding_dim = data_manager.get_input_shape()[0]  # need to unpack it cuz its a tuple
-    w2v_model = LogLinear(embedding_dim=embedding_dim)
+    data_manager = DataManager(data_type=ONEHOT_AVERAGE, batch_size=batch_size)
+    dim = data_manager.get_input_shape()[0]
+    w2v_log_linear_model = LogLinear(embedding_dim=dim)
+    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver =\
+        train_model(w2v_log_linear_model, data_manager, n_epoch, learning_rate, w)
 
-    # training phase
-    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver = train_model(w2v_model,
-                                                                                                       data_manager,
-                                                                                                       n_epoch,
-                                                                                                       learning_rate,
-                                                                                                       w_decay)
+    save_model(w2v_log_linear_model, os.getcwd() + "/log_linear_with_w2v_result.pkl", n_epoch, trained_solver)
 
-    print(f'train loss list is = {train_loss} \n train accuracy list is = { train_accuracy}')
-    print(f'validation loss list is = {train_validation_loss} \n validation accuracy list is = { train_validation_accuracy}')
+    plot_model_results('w2v_log_linear_model_loss', train_loss, train_validation_loss, n_epoch, w, "w2v LogLinear Loss", "Train Loss", "Validation Loss")
+    plot_model_results('w2v_log_linear_model_accuracy', train_validation_loss, train_validation_accuracy, n_epoch, w, "w2v LogLinear Accuracy", "Train Accuracy", "Validation Accuracy")
+    model_info = f'Train Loss: {train_loss} \n Train Accuracy: {train_accuracy} \n Validation Loss: {train_validation_loss} \n Validation Accuracy: {train_validation_accuracy}'
+    print(model_info)
+    with open("w2v_log_linear_model_info.txt", "w") as text_file:
+        text_file.write(model_info)
     return
 
 
@@ -549,33 +554,121 @@ def train_lstm_with_w2v():
     """
     Here comes your code for training and evaluation of the LSTM model.
     """
-    w, drop_out , hidden_dim = 0.0001, 0.5, 100
-    learn_rate, n, batch_size = 0.001, 4, 64
+    w = 0.0001
+    drop_out = 0.5
+    hidden_dim = 100
+    n_epoch = 4
+    batch_size = 64
+    learning_rate = 0.001
 
-    # models and objects data
-    data_manager = DataManager(data_type=W2V_SEQUENCE,embedding_dim=W2V_EMBEDDING_DIM,batch_size=batch_size)
-    test_set = data_manager.get_torch_iterator(data_subset=TEST)
-    dim = data_manager.get_input_shape()[1]  # for LTS the din is in shape 1
-
+    data_manager = DataManager(data_type=W2V_SEQUENCE, embedding_dim=W2V_EMBEDDING_DIM, batch_size=batch_size)
+    dim = data_manager.get_input_shape()[1]
     lstm_model = LSTM(embedding_dim=dim, hidden_dim=hidden_dim, n_layers=1, dropout=drop_out)
-    loss_func = nn.BCEWithLogitsLoss()
-    # model_file_path = "/LSTM_w2v_model.pkl"
+    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver =\
+        train_model(lstm_model, data_manager, n_epoch, learning_rate, w)
 
+    save_model(lstm_model, os.getcwd() + "/lstm_with_w2v_model.pkl", n_epoch, trained_solver)
 
-    model_result_path = "/LSTM_w2v_result.txt"
-    # training phase
-    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver = train_model(lstm_model,
-                                                                                                       data_manager,
-                                                                                                       n,
-                                                                                                       learn_rate,
-                                                                                                       w)
-    # saving the model check point for models comparison usage
-    # save_model(lstm_model, os.getcwd() + model_file_path,  n_epoch, trained_solver)
+    plot_model_results('lstm_with_w2v_model_loss', train_loss, train_validation_loss, n_epoch, w, "LSTM loss", "Train Loss", "Validation Loss")
+    plot_model_results('lstm_with_w2v_model_accuracy', train_accuracy, train_validation_accuracy, n_epoch, w, "LSTM Accuracy", "Train Accuracy", "Validation Accuracy")
+    model_info = f'Train Loss: {train_loss} \n Train Accuracy: {train_accuracy} \n Validation Loss: {train_validation_loss} \n Validation Accuracy: {train_validation_accuracy}'
+    print(model_info)
+    with open("lstm_with_w2v_model_info.txt", "w") as text_file:
+        text_file.write(model_info)
+
     return
+
+
+def plot_model_results(fig_name, loss_list, accuracy_list, epoch, w, title: str, legend_a: str, legend_b: str):
+    epoch_array = np.arange(1, epoch + 1)
+    plt.tight_layout()
+    plt.title(f"{title}  \n for different number of epoch iteration with w = {w}")
+    plt.legend([legend_a, legend_b], bbox_to_anchor=(1.00, 1), loc='upper left', borderaxespad=0.)
+    plt.plot(epoch_array.copy(), np.array(loss_list), color="blue")
+    plt.plot(epoch_array.copy(), np.array(accuracy_list), color="yellow")
+    plt.savefig(fig_name)
+    plt.show()
+
+
+def compare_results_of_all_models_on_special_subsets():
+    DEFUALT_DATA_MANAGER = DataManager()
+    log_linear_data_manager = DataManager(data_type=ONEHOT_AVERAGE, batch_size=len(DEFUALT_DATA_MANAGER.sentences[TEST]))
+    w2v_lstm_data_manager = DataManager(data_type=W2V_SEQUENCE, embedding_dim=W2V_EMBEDDING_DIM, batch_size=len(DEFUALT_DATA_MANAGER.sentences[TEST]))
+
+    dataset = data_loader.SentimentTreeBank()
+    negate_polarity_indexes = data_loader.get_negated_polarity_examples(DEFUALT_DATA_MANAGER.sentences[TEST])
+    rare_indexes = data_loader.get_rare_words_examples(DEFUALT_DATA_MANAGER.sentences[TEST], dataset)
+
+    linear_negate_polarity = [torch.zeros([len(negate_polarity_indexes), log_linear_data_manager.get_input_shape()[0]], dtype=torch.float64), torch.zeros([len(negate_polarity_indexes),])]
+    linear_rare = [torch.zeros([len(rare_indexes), log_linear_data_manager.get_input_shape()[0]], dtype=torch.float64), torch.zeros([len(rare_indexes),])]
+
+    w2v_lstm_negate_polarity = [torch.zeros([len(negate_polarity_indexes), w2v_lstm_data_manager.get_input_shape()[0], w2v_lstm_data_manager.get_input_shape()[1]], dtype=torch.float64), torch.zeros([len(negate_polarity_indexes),])]
+    w2v_lstm_rare = [torch.zeros([len(rare_indexes), w2v_lstm_data_manager.get_input_shape()[0], w2v_lstm_data_manager.get_input_shape()[1]], dtype=torch.float64), torch.zeros([len(rare_indexes),])]
+
+    i, j = 0, 0
+    for batch in log_linear_data_manager.get_torch_iterator(data_subset=TEST):
+        for sentence_or_label_index, sentence_or_label in enumerate(batch):
+            i, j = 0, 0
+            for index, word_some in enumerate(sentence_or_label):
+                if index in negate_polarity_indexes:
+                    linear_negate_polarity[sentence_or_label_index][i] = word_some
+                    i += 1
+                if index in rare_indexes:
+                    linear_rare[sentence_or_label_index][j] = word_some
+                    j += 1
+
+    i, j = 0, 0
+    for batch in w2v_lstm_data_manager.get_torch_iterator(data_subset=TEST):
+        for sentence_or_label_index, sentence_or_label in enumerate(batch):
+            i, j = 0, 0
+            for index, word_some in enumerate(sentence_or_label):
+                if index in negate_polarity_indexes:
+                    w2v_lstm_negate_polarity[sentence_or_label_index][i] = word_some
+                    i += 1
+                if index in rare_indexes:
+                    w2v_lstm_rare[sentence_or_label_index][j] = word_some
+                    j += 1
+
+    learning_rate = 0.01
+    lstm_learning_rate = 0.001
+    w = 0.001
+    lstm_w = 0.0001
+    drop_out = 0.5
+    hidden_dim = 100
+
+    log_linear_dim = log_linear_data_manager.get_input_shape()[0]
+    w2m_lstm_dim = w2v_lstm_data_manager.get_input_shape()[1]
+    log_linear = LogLinear(embedding_dim=log_linear_dim)
+    w2v_log_linear = LogLinear(embedding_dim=log_linear_dim)
+    w2v_lstm = LSTM(embedding_dim=w2m_lstm_dim, hidden_dim=hidden_dim, n_layers=1, dropout=drop_out)
+    log_linear_solver = torch.optim.Adam(params=log_linear.parameters(), lr=learning_rate, weight_decay=w)
+    w2v_log_linear_solver = torch.optim.Adam(params=w2v_log_linear.parameters(), lr=learning_rate, weight_decay=w)
+    w2v_lstm_solver = torch.optim.Adam(params=w2v_lstm.parameters(), lr=lstm_learning_rate, weight_decay=lstm_w)
+
+    log_linear, log_linear_optimizer, log_linear_epoch= load(log_linear, os.getcwd() + "/log_linear_result.pkl", log_linear_solver)
+    w2v_log_linear, w2v_log_linear_optimizer, w2v_log_linear_epoch = load(w2v_log_linear, os.getcwd() + "/log_linear_with_w2v_result.pkl", w2v_log_linear_solver)
+    w2v_lstm, w2v_lstm_optimizer, w2v_lstm_epoch = load(w2v_lstm, os.getcwd() + "/lstm_with_w2v_model.pkl", w2v_lstm_solver)
+
+    for model_details in [['log linear', log_linear, False], ['w2v log linear', w2v_log_linear, False], ['w2v LSTM', w2v_lstm, True]]:
+        model_lost, model_accuracy = evaluate(model_details[1], [linear_negate_polarity] if model_details[2] is False else [w2v_lstm_negate_polarity], nn.BCEWithLogitsLoss())
+
+        info = f"{model_details[0]} model evaluation \n NEGATE POLARITY Subset Loss: {model_lost}, NEGATE POLARITY Subset Accuracy: {model_accuracy}"
+        with open(f"{model_details[0]}-NEGATE_POLARITY.txt", "w+") as text_file:
+            text_file.write(info)
+        print(info)
+
+        model_lost, model_accuracy = evaluate(model_details[1], [linear_rare] if model_details[2] is False else [w2v_lstm_rare], nn.BCEWithLogitsLoss())
+
+        info = f"{model_details[0]} model evaluation \n RARE Subset Loss: {model_lost}, RARE Subset Accuracy: {model_accuracy}"
+        with open(f"{model_details[0]}-RARE.txt", "w+") as text_file:
+            text_file.write(info)
+        print(info)
 
 
 if __name__ == '__main__':
     get_available_device()
-    train_log_linear_with_one_hot()
+    # train_log_linear_with_one_hot()
     # train_log_linear_with_w2v()
     # train_lstm_with_w2v()
+    compare_results_of_all_models_on_special_subsets()
+

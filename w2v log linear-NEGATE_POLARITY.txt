@@ -1,0 +1,2 @@
+w2v log linear model evaluation 
+ NEGATE POLARITY Subset Loss: 0.70343416929245, NEGATE POLARITY Subset Accuracy: 0.4838709677419355

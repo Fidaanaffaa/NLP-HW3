@@ -1,0 +1,2 @@
+w2v LSTM model evaluation 
+ RARE Subset Loss: 0.6008898019790649, RARE Subset Accuracy: 0.78

@@ -1,0 +1,2 @@
+log linear model evaluation 
+ RARE Subset Loss: 0.7435926198959351, RARE Subset Accuracy: 0.3

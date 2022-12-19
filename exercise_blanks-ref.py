@@ -783,9 +783,6 @@ if __name__ == '__main__':
 #     print("3")
 #     print(list(dataset.get_word_counts().keys())[:10])
 #
-
-    train_data_manger = DataManager(data_type=ONEHOT_AVERAGE, batch_size=64)
-    test_set = train_data_manger.get_torch_iterator(data_subset=TEST)
     plt.clf()
     train_log_linear_with_one_hot()
     train_log_linear_with_w2v()
