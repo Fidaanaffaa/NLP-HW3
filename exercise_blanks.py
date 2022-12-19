@@ -392,7 +392,7 @@ def train_epoch(model, data_iterator, optimizer, criterion):
 
         loss_weights_list.append(loss_tensor.item())
 
-        loss_tensor.backword()
+        loss_tensor.backward()
 
         optimizer.step()
 
@@ -476,8 +476,8 @@ def train_model(model, data_manager, n_epochs, lr, weight_decay=0.):
     val_data_iterator = data_manager.get_torch_iterator(data_subset=VAL)
 
     for i in range(n_epochs):
-        train_loss_list[i], train_accuracy_list[i] = train_epoch(model, train_data_iterator, solver, nn.BCEWithLogitsLoss)
-        val_train_loss_list[i], val_accuracy_list[i] = evaluate(model, train_data_iterator, solver)
+        train_loss_list[i], train_accuracy_list[i] = train_epoch(model, train_data_iterator, solver, nn.BCEWithLogitsLoss())
+        val_train_loss_list[i], val_accuracy_list[i] = evaluate(model, val_data_iterator, nn.BCEWithLogitsLoss())
 
 
     return train_loss_list, train_accuracy_list, val_train_loss_list, val_accuracy_list, solver
