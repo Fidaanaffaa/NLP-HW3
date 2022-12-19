@@ -146,26 +146,23 @@ def average_one_hots(sent, word_to_ind):
     """
 
     vocabulary = word_to_ind.keys()
-    text_list = sent.text
+    text = sent.text
     # test if all words in the sentence are unknown words
-    i = 0
-    for word in text_list:
-        if i == len(text_list):
-            return np.zeros(len(text_list))
-        if word in vocabulary:
-            break
-        else:
-            i += 1
-    # initialize param
-    i = 0
-    one_hot_vectors_matrix = np.zeros(shape=((len(text_list), len(word_to_ind))))
-    for word in text_list:
-        one_hot_vectors_matrix[i] = get_one_hot(len(word_to_ind), word_to_ind[word])
-        i += 1
-    sum_vectors = one_hot_vectors_matrix.sum(axis=0)  # axis = 0 sum all the cols
-    embedding_vector = sum_vectors / len(word_to_ind)  # normalize the sum vector
+    unknown_words = 0
+    for word in text:
+        if word not in vocabulary:
+            unknown_words += 1
 
-    return embedding_vector
+    if unknown_words == len(text):
+        return np.zeros(len(text))
+
+    word_index = 0
+    one_hot_vectors_matrix = np.zeros(shape=((len(text), len(word_to_ind))))
+    for word in text:
+        one_hot_vectors_matrix[word_index] = get_one_hot(len(word_to_ind), word_to_ind[word])
+        word_index += 1
+
+    return one_hot_vectors_matrix.sum(axis=0) / len(word_to_ind)  # returns the embedding vector
 
 
 def get_word_to_ind(words_list):
@@ -521,6 +518,7 @@ def train_lstm_with_w2v():
 
 
 if __name__ == '__main__':
+    get_available_device()
     train_log_linear_with_one_hot()
     # train_log_linear_with_w2v()
     # train_lstm_with_w2v()
