@@ -313,13 +313,31 @@ class LSTM(nn.Module):
     An LSTM for sentiment analysis with architecture as described in the exercise description.
     """
     def __init__(self, embedding_dim, hidden_dim, n_layers, dropout):
+        super().__init__()
+        self.model = nn.LSTM(embedding_dim, hidden_dim, n_layers, batch_first=True, bidirectional=True)
+        # batch_first=True meaning that we must have the batch as the first dim
+        # meaning input x need to have the shape ->[ batch_size ,sequence length , input/feature size]
+        self.n_layers = n_layers
+        self.hidden_dim = hidden_dim
+        self.dropout = nn.Dropout(p=dropout)
+        # we implement bi LSTM so need to give for each input the new leayer and the layer before
+        self.layer = nn.Linear(in_features=hidden_dim * 2, out_features=1)
+        # we do hidden_dim*2 since we have 1 layer go forward and 1 go backward but they all get concatenated
+        # for the same hidden state
+        self.apply = nn.Sigmoid()
         return
 
     def forward(self, text):
-        return
+        h_0 = torch.zeros(self.n_layers * 2, text.size(0), self.hidden_dim)
+        c_0 = torch.zeros(self.n_layers * 2, text.size(0), self.hidden_dim)
+        result, (h_n, c_n) = self.model(text, (h_0, c_0))
+        cat = torch.cat((h_n[-2, :, :], h_n[-1, :, :]), dim=1)
+        dropout = self.dropout(cat)
+        final = self.layer(dropout)
+        return final
 
     def predict(self, text):
-        return
+        return self.apply(self.forward(text))
 
 
 class LogLinear(nn.Module):
@@ -507,6 +525,23 @@ def train_log_linear_with_w2v():
     Here comes your code for training and evaluation of the log linear model with word embeddings
     representation.
     """
+    w_decay = 0.001
+    learning_rate, n_epoch, batches_size = 0.01, 20, 64
+
+    data_manager = DataManager(data_type=ONEHOT_AVERAGE, batch_size=batches_size)
+    test_set = data_manager.get_torch_iterator(data_subset=TEST)
+    embedding_dim = data_manager.get_input_shape()[0]  # need to unpack it cuz its a tuple
+    w2v_model = LogLinear(embedding_dim=embedding_dim)
+
+    # training phase
+    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver = train_model(w2v_model,
+                                                                                                       data_manager,
+                                                                                                       n_epoch,
+                                                                                                       learning_rate,
+                                                                                                       w_decay)
+
+    print(f'train loss list is = {train_loss} \n train accuracy list is = { train_accuracy}')
+    print(f'validation loss list is = {train_validation_loss} \n validation accuracy list is = { train_validation_accuracy}')
     return
 
 
@@ -514,6 +549,28 @@ def train_lstm_with_w2v():
     """
     Here comes your code for training and evaluation of the LSTM model.
     """
+    w, drop_out , hidden_dim = 0.0001, 0.5, 100
+    learn_rate, n, batch_size = 0.001, 4, 64
+
+    # models and objects data
+    data_manager = DataManager(data_type=W2V_SEQUENCE,embedding_dim=W2V_EMBEDDING_DIM,batch_size=batch_size)
+    test_set = data_manager.get_torch_iterator(data_subset=TEST)
+    dim = data_manager.get_input_shape()[1]  # for LTS the din is in shape 1
+
+    lstm_model = LSTM(embedding_dim=dim, hidden_dim=hidden_dim, n_layers=1, dropout=drop_out)
+    loss_func = nn.BCEWithLogitsLoss()
+    # model_file_path = "/LSTM_w2v_model.pkl"
+
+
+    model_result_path = "/LSTM_w2v_result.txt"
+    # training phase
+    train_loss, train_accuracy, train_validation_loss, train_validation_accuracy, trained_solver = train_model(lstm_model,
+                                                                                                       data_manager,
+                                                                                                       n,
+                                                                                                       learn_rate,
+                                                                                                       w)
+    # saving the model check point for models comparison usage
+    # save_model(lstm_model, os.getcwd() + model_file_path,  n_epoch, trained_solver)
     return
 
 
