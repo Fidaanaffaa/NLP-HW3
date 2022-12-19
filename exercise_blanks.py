@@ -667,8 +667,8 @@ def compare_results_of_all_models_on_special_subsets():
 
 if __name__ == '__main__':
     get_available_device()
-    # train_log_linear_with_one_hot()
-    # train_log_linear_with_w2v()
-    # train_lstm_with_w2v()
+    train_log_linear_with_one_hot()
+    train_log_linear_with_w2v()
+    train_lstm_with_w2v()
     compare_results_of_all_models_on_special_subsets()
 
